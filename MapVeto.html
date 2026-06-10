@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Banimento de Mapas</title>
     <style>
-        /* O VISUAL DO PROGRAMA (CSS) */
+        
         body {
             font-family: Arial, sans-serif;
             background-color: #121214;
@@ -57,7 +57,7 @@
             width: 200px;
             cursor: pointer;
             transition: 0.3s;
-            position: relative; /* Importante para posicionar a tarja */
+            position: relative; 
         }
         .card-mapa img {
             width: 100%;
@@ -70,9 +70,6 @@
             font-weight: bold;
         }
         
-        /* ESTADOS DOS MAPAS */
-        
-        /* Modificado: Agora APENAS a imagem e o texto original do mapa ficam escuros */
         .card-mapa.banido img, .card-mapa.banido p {
             opacity: 0.25;
             filter: grayscale(100%);
@@ -82,7 +79,6 @@
             pointer-events: none;
         }
         
-        /* Tarja de banimento: Fica 100% nítida e por cima de tudo */
         .card-mapa.banido::after {
             content: attr(data-banido-por);
             position: absolute;
@@ -98,24 +94,21 @@
             white-space: nowrap;
             box-shadow: 0 4px 15px rgba(0,0,0,0.6);
             z-index: 10;
-            opacity: 1 !important; /* Força a nitidez total */
+            opacity: 1 !important;
         }
 
-        /* Azul para as escolhas do Time A */
         .card-mapa.escolhido-timeA {
             border-color: #00b0ff;
             box-shadow: 0 0 15px #00b0ff;
             pointer-events: none;
         }
 
-        /* Roxo/Verde/Customizado para as escolhas do Time B */
         .card-mapa.escolhido-timeB {
-            border-color: #ff9100; /* Mudei para Roxo para diferenciar bem, altere se quiser! */
+            border-color: #ff9100; 
             box-shadow: 0 0 15px #ff9100;
             pointer-events: none;
         }
 
-        /* NOVO: Dourado/Laranja exclusivo para o mapa de desempate (Decider) */
         .card-mapa.escolhido-decider {
             border-color: #50df0e; 
             box-shadow: 0 0 15px #50df0e;
@@ -160,7 +153,7 @@
     </div>
 
     <script>
-        // A LÓGICA DO PROGRAMA (JAVASCRIPT)
+    
         
         const listaMapasOriginais = [
             { nome: "Fronteira", imagem: "https://liquipedia.net/commons/images/thumb/b/bf/R6S_map_border.jpg/602px-R6S_map_border.jpg" },
@@ -299,7 +292,7 @@
             if (disponiveis.length === 1) {
                 const mapaFinal = disponiveis[0];
                 const indexFinal = mapas.indexOf(mapaFinal);
-                document.getElementById(`mapa-${indexFinal}`).classList.add("escolhido-decider"); // MD1 termina com cor de Decider
+                document.getElementById(`mapa-${indexFinal}`).classList.add("escolhido-decider");
 
                 exibirResultado(`<h3>Mapa Selecionado para o Confronto:</h3><h2>${mapaFinal.nome}</h2>`);
             }
@@ -312,7 +305,7 @@
                 const decider = disponiveis[0];
                 if (decider) {
                     const indexDecider = mapas.indexOf(decider);
-                    document.getElementById(`mapa-${indexDecider}`).classList.add("escolhido-decider"); // Borda Laranja para o Decider
+                    document.getElementById(`mapa-${indexDecider}`).classList.add("escolhido-decider"); 
                     escolhasMD3.push({ nome: decider.nome, tipo: "Mapa Desempate (Decider)" });
                 }
 

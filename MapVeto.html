@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Banimento de Mapas</title>
+    <style>
+        /* O VISUAL DO PROGRAMA (CSS) */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #121214;
+            color: white;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 { color: #ff4a5a; }
+        .config-inicial {
+            background-color: #202024;
+            padding: 20px;
+            border-radius: 8px;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        input, select, button {
+            padding: 10px;
+            margin: 5px;
+            border-radius: 4px;
+            border: none;
+            font-size: 16px;
+        }
+        button {
+            background-color: #ff4a5a;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover { background-color: #cc3b47; }
+        .status-turno {
+            font-size: 20px;
+            margin: 20px;
+            font-weight: bold;
+        }
+        .container-mapas {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .card-mapa {
+            background-color: #202024;
+            border: 3px solid #323238;
+            border-radius: 8px;
+            overflow: hidden;
+            width: 200px;
+            cursor: pointer;
+            transition: 0.3s;
+            position: relative; /* Importante para posicionar a tarja */
+        }
+        .card-mapa img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            transition: 0.3s;
+        }
+        .card-mapa p {
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        
+        /* ESTADOS DOS MAPAS */
+        
+        /* Modificado: Agora APENAS a imagem e o texto original do mapa ficam escuros */
+        .card-mapa.banido img, .card-mapa.banido p {
+            opacity: 0.25;
+            filter: grayscale(100%);
+        }
+        .card-mapa.banido {
+            border-color: #ff4a5a;
+            pointer-events: none;
+        }
+        
+        /* Tarja de banimento: Fica 100% nítida e por cima de tudo */
+        .card-mapa.banido::after {
+            content: attr(data-banido-por);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-15deg);
+            background-color: #ff4a5a;
+            color: white;
+            padding: 8px 14px;
+            font-weight: bold;
+            font-size: 13px;
+            border-radius: 4px;
+            white-space: nowrap;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+            z-index: 10;
+            opacity: 1 !important; /* Força a nitidez total */
+        }
+
+        /* Azul para as escolhas do Time A */
+        .card-mapa.escolhido-timeA {
+            border-color: #00b0ff;
+            box-shadow: 0 0 15px #00b0ff;
+            pointer-events: none;
+        }
+
+        /* Roxo/Verde/Customizado para as escolhas do Time B */
+        .card-mapa.escolhido-timeB {
+            border-color: #ff9100; /* Mudei para Roxo para diferenciar bem, altere se quiser! */
+            box-shadow: 0 0 15px #ff9100;
+            pointer-events: none;
+        }
+
+        /* NOVO: Dourado/Laranja exclusivo para o mapa de desempate (Decider) */
+        .card-mapa.escolhido-decider {
+            border-color: #50df0e; 
+            box-shadow: 0 0 15px #50df0e;
+            pointer-events: none;
+        }
+
+        .escondido { display: none !important; }
+        
+        .resultado-final {
+            font-size: 24px;
+            background-color: #2e2e35;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border: 2px solid #1bdb25;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Pick & Ban de Mapas</h1>
+
+    <div id="tela-config" class="config-inicial">
+        <h3>Configuração da Partida</h3>
+        <input type="text" id="timeA" value="Time A" placeholder="Nome do Time A">
+        <input type="text" id="timeB" value="Time B" placeholder="Nome do Time B">
+        <select id="modo">
+            <option value="MD1">Melhor de 1 (MD1)</option>
+            <option value="MD3">Melhor de 3 (MD3)</option>
+        </select>
+        <button onclick="iniciarVeto()">Começar Vetos</button>
+    </div>
+
+    <div id="tela-veto" class="escondido">
+        <div id="status-turno" class="status-turno">Turno do Time</div>
+        <div id="instrucao-acao" style="margin-bottom: 15px; font-style: italic;">Ação atual: Banir</div>
+        
+        <div class="container-mapas" id="lista-mapas">
+            </div>
+
+        <div id="resultado" class="resultado-final escondido"></div>
+    </div>
+
+    <script>
+        // A LÓGICA DO PROGRAMA (JAVASCRIPT)
+        
+        const listaMapasOriginais = [
+            { nome: "Fronteira", imagem: "https://liquipedia.net/commons/images/thumb/b/bf/R6S_map_border.jpg/602px-R6S_map_border.jpg" },
+            { nome: "Laboratorio", imagem: "https://liquipedia.net/commons/images/thumb/c/cd/R6S_map_Nighthaven_Labs.jpg/552px-R6S_map_Nighthaven_Labs.jpg" },
+            { nome: "Banco", imagem: "https://tinyurl.com/3d6akwpz" },
+            { nome: "Chalé", imagem: "https://liquipedia.net/commons/images/1/19/R6S_map_chalet.jpg" },
+            { nome: "Covil", imagem: "https://liquipedia.net/commons/images/thumb/8/85/R6s_map_lair.png/601px-R6s_map_lair.png" },
+            { nome: "Fortaleza", imagem: "https://liquipedia.net/commons/images/thumb/a/aa/R6S_map_fortress.jpg/602px-R6S_map_fortress.jpg" },
+            { nome: "Consulado", imagem: "https://liquipedia.net/commons/images/thumb/d/d8/R6S_map_consulate.jpg/602px-R6S_map_consulate.jpg" },
+            { nome: "Club House", imagem: "https://liquipedia.net/commons/images/thumb/a/ad/R6S_map_clubhouse.jpg/602px-R6S_map_clubhouse.jpg" },
+            { nome: "Kafe", imagem: "https://liquipedia.net/commons/images/thumb/f/f2/R6S_map_kafe.jpg/602px-R6S_map_kafe.jpg" }
+        ];
+
+        let mapas = [];
+        let nomeTimeA = "";
+        let nomeTimeB = "";
+        let modoJogo = "";
+        let turnoAtual = "";
+        let faseAtual = 0;
+        let escolhasMD3 = [];
+
+        const ordemMD3 = [
+            { time: "A", acao: "ban" },
+            { time: "B", acao: "ban" },
+            { time: "A", acao: "pick" },
+            { time: "B", acao: "pick" },
+            { time: "A", acao: "ban" },
+            { time: "B", acao: "ban" },
+            { time: "A", acao: "ban" },
+            { time: "B", acao: "ban" }
+        ];
+
+        function iniciarVeto() {
+            nomeTimeA = document.getElementById("timeA").value || "Time A";
+            nomeTimeB = document.getElementById("timeB").value || "Time B";
+            modoJogo = document.getElementById("modo").value;
+            
+            mapas = JSON.parse(JSON.stringify(listaMapasOriginais)); 
+            turnoAtual = nomeTimeA;
+            faseAtual = 0;
+            escolhasMD3 = [];
+
+            document.getElementById("tela-config").classList.add("escondido");
+            document.getElementById("tela-veto").classList.remove("escondido");
+            
+            renderizarMapas();
+            atualizarInterface();
+        }
+
+        function renderizarMapas() {
+            const container = document.getElementById("lista-mapas");
+            container.innerHTML = "";
+
+            mapas.forEach((mapa, index) => {
+                const card = document.createElement("div");
+                card.className = "card-mapa";
+                card.id = `mapa-${index}`;
+                card.onclick = () => clicarNoMapa(index);
+
+                card.innerHTML = `
+                    <img src="${mapa.imagem}" alt="${mapa.nome}">
+                    <p>${mapa.nome}</p>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function atualizarInterface() {
+            const statusDiv = document.getElementById("status-turno");
+            const instrucaoDiv = document.getElementById("instrucao-acao");
+
+            const disponiveis = mapas.filter(m => !m.status);
+            if (modoJogo === "MD1" && disponiveis.length === 1) return;
+            if (modoJogo === "MD3" && (faseAtual >= ordemMD3.length || disponiveis.length === 1)) return;
+
+            if (modoJogo === "MD1") {
+                statusDiv.innerText = `Turno de: ${turnoAtual}`;
+                statusDiv.style.color = (turnoAtual === nomeTimeA) ? "#00b0ff" : "#ff9100";
+                instrucaoDiv.innerText = "Ação: BANIR mapa";
+            } else {
+                if (faseAtual < ordemMD3.length) {
+                    const configTurno = ordemMD3[faseAtual];
+                    turnoAtual = configTurno.time === "A" ? nomeTimeA : nomeTimeB;
+                    
+                    statusDiv.innerText = `Turno de: ${turnoAtual}`;
+                    statusDiv.style.color = (configTurno.time === "A") ? "#00b0ff" : "#ff9100";
+                    instrucaoDiv.innerText = configTurno.acao === "ban" ? "Ação: BANIR mapa" : "Ação: ESCOLHER (PICK) mapa";
+                }
+            }
+        }
+
+        function clicarNoMapa(index) {
+            const mapa = mapas[index];
+            const card = document.getElementById(`mapa-${index}`);
+
+            if (mapa.status) return; 
+
+            if (modoJogo === "MD1") {
+                mapa.status = "banido";
+                card.classList.add("banido");
+                card.setAttribute("data-banido-por", `Banido por: ${turnoAtual}`);
+                
+                turnoAtual = (turnoAtual === nomeTimeA) ? nomeTimeB : nomeTimeA;
+                
+                verificarFimMD1();
+            } else {
+                if (faseAtual < ordemMD3.length) {
+                    const acaoAtual = ordemMD3[faseAtual].acao;
+
+                    if (acaoAtual === "ban") {
+                        mapa.status = "banido";
+                        card.classList.add("banido");
+                        card.setAttribute("data-banido-por", `Banido por: ${turnoAtual}`);
+                    } else if (acaoAtual === "pick") {
+                        mapa.status = "escolhido";
+                        
+                        if (turnoAtual === nomeTimeA) {
+                            card.classList.add("escolhido-timeA"); // Borda Azul para Time A
+                        } else {
+                            card.classList.add("escolhido-timeB"); // Borda Roxa para Time B
+                        }
+                        
+                        escolhasMD3.push({ nome: mapa.nome, tipo: `Escolha do ${turnoAtual}` });
+                    }
+
+                    faseAtual++;
+                    verificarFimMD3();
+                }
+            }
+            atualizarInterface();
+        }
+
+        function verificarFimMD1() {
+            const disponiveis = mapas.filter(m => !m.status);
+            
+            if (disponiveis.length === 1) {
+                const mapaFinal = disponiveis[0];
+                const indexFinal = mapas.indexOf(mapaFinal);
+                document.getElementById(`mapa-${indexFinal}`).classList.add("escolhido-decider"); // MD1 termina com cor de Decider
+
+                exibirResultado(`<h3>Mapa Selecionado para o Confronto:</h3><h2>${mapaFinal.nome}</h2>`);
+            }
+        }
+
+        function verificarFimMD3() {
+            const disponiveis = mapas.filter(m => !m.status);
+
+            if (faseAtual >= ordemMD3.length || disponiveis.length === 1) {
+                const decider = disponiveis[0];
+                if (decider) {
+                    const indexDecider = mapas.indexOf(decider);
+                    document.getElementById(`mapa-${indexDecider}`).classList.add("escolhido-decider"); // Borda Laranja para o Decider
+                    escolhasMD3.push({ nome: decider.nome, tipo: "Mapa Desempate (Decider)" });
+                }
+
+                let textoResultado = "<h3>Mapas da MD3 Definidos:</h3>";
+                escolhasMD3.forEach((m, i) => {
+                    let corTexto = m.tipo.includes(nomeTimeA) ? "#00b0ff" : "#ff9100";
+                    if(m.tipo.includes("Decider")) corTexto = "#ff9100";
+                    
+                    textoResultado += `<p><strong>Jogo ${i+1}:</strong> ${m.nome} <span style="color:${corTexto}">(${m.tipo})</span></p>`;
+                });
+
+                exibirResultado(textoResultado);
+            }
+        }
+
+        function exibirResultado(texto) {
+            const resDiv = document.getElementById("resultado");
+            resDiv.innerHTML = texto;
+            resDiv.classList.remove("escondido");
+            document.getElementById("status-turno").innerText = "Vetos Concluídos!";
+            document.getElementById("status-turno").style.color = "#ff9100";
+            document.getElementById("instrucao-acao").innerText = "";
+        }
+    </script>
+</body>
+</html>
